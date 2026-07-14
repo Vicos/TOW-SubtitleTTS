@@ -3,14 +3,35 @@ local TTS = {}
 
 --- Windows named pipe to send speech action to the TTS serveur
 local pipe = nil
---- Global configuration for Speakers
-local speakers = {
+
+--- Global configuration for Voices
+local speechVoices = {
     default = { voice = "Microsoft Zira Desktop", rate = 0, volume = 100, pitch = 0 },
     overlay = { voice = "Microsoft Zira Desktop", rate = 0, volume = 50, pitch = 0 }
 }
 
+--- Minimum pitch value return by procedural RNG
+local RNG_PITCH_VAR_MIN = -10 -- Hz
+--- Maximum pitch value return by procedural RNG
+local RNG_PITCH_VAR_MAX = 10  -- Hz
+--- List of supported voices return by procedural RNG
+local RNG_VOICES = { "Microsoft Zira Desktop" }
+
+
 --- Log a message
 local function log(fmt, ...) print(string.format("[SubtitleTTS][TTS] " .. fmt, ...)) end
+
+--- Return hash based on a given string
+--- Used a Procedural RNG
+local function hash_string(str)
+    local hash = 2166136261 -- Fowler–Noll–Vo offset basis
+    for i = 1, #str do
+        local char = string.byte(str, i)
+        hash = (hash ~ char) * 16777619
+        hash = hash & 0xFFFFFFFF -- Conserve un format 32-bit
+    end
+    return hash
+end
 
 function TTS.send_command(payload_table)
     local pipe_path = [[\\.\pipe\TheOuterWorlds_TTS_Pipe]]
@@ -56,25 +77,37 @@ function TTS.Speak(text, voice, rate, volume, pitch)
     TTS.send_command({
         action = "speak",
         text = text,
-        voice = voice or speakers.default.voice or nil,
-        rate = rate or speakers.default.rate or 0,
-        volume = volume or speakers.default.volume or 100,
-        pitch = pitch or speakers.default.pitch or 0,
+        voice = voice or speechVoices.default.voice or nil,
+        rate = rate or speechVoices.default.rate or 0,
+        volume = volume or speechVoices.default.volume or 100,
+        pitch = pitch or speechVoices.default.pitch or 0,
     })
 end
 
 --- Say the given text as speaker.
---- @param text     string Text to speech
---- @param speaker  string Speaker name (default, overlay)
-function TTS.SpeakAs(text, speaker)
+--- @param text         string Text to speech
+--- @param speechVoice  string Speech voice (default, overlay)
+--- @param speaker?     string Speaker name if any
+function TTS.SpeakAs(text, speechVoice, speaker)
+    local voice = speechVoices[speechVoice].voice or nil
+    local pitch = speechVoices[speechVoice].pitch or 0
+    -- Inject procedural RNG, usign speaker name as seed
+    if speaker then
+        local seed = hash_string(speaker)
+        local voice_index = (seed % #RNG_VOICES) + 1
+        voice = RNG_VOICES[voice_index]
+        local pitch_factor = ((seed >> 5) % 1000) / 1000
+        pitch = pitch + math.floor(RNG_PITCH_VAR_MIN + (pitch_factor * (RNG_PITCH_VAR_MAX - RNG_PITCH_VAR_MIN)))
+    end
+
     TTS.Stop()
     TTS.send_command({
         action = "speak",
         text = text,
-        voice = speakers[speaker].voice or nil,
-        rate = speakers[speaker].rate or 0,
-        volume = speakers[speaker].volume or 100,
-        pitch = speakers[speaker].pitch or 0
+        voice = voice,
+        rate = speechVoices[speechVoice].rate or 0,
+        volume = speechVoices[speechVoice].volume or 100,
+        pitch = pitch or 0
     })
 end
 
@@ -82,18 +115,24 @@ function TTS.Stop()
     TTS.send_command({ action = "stop" })
 end
 
---- Say the default speaker voice, rate and volume.
---- @param speaker  string Speaker name (default, overlay)
---- @param voice    string Voice name (see installed voice)
---- @param rate     number Speech rate, i range -10..10
---- @param volume   number Speech volum, in range 0..100
---- @param pitch    number Pitch modifier, in relative Hz, ex: -5, 10, -7
-function TTS.SetSpeaker(speaker, voice, rate, volume, pitch)
-    if speaker == "default" then
-        speakers.default = { voice = voice, rate = rate, volume = volume, pitch = pitch }
-    elseif speaker == "overlay" then
-        speakers.overlay = { voice = voice, rate = rate, volume = volume, pitch = pitch }
+--- Set the default speaker voice, rate and volume.
+--- @param speechVoice  string Speech voice (default, overlay)
+--- @param voice        string Voice name (see installed voice)
+--- @param rate         number Speech rate, i range -10..10
+--- @param volume       number Speech volum, in range 0..100
+--- @param pitch        number Pitch modifier, in relative Hz, ex: -5, 10, -7
+function TTS.SetSpeechVoice(speechVoice, voice, rate, volume, pitch)
+    if speechVoice == "default" then
+        speechVoices.default = { voice = voice, rate = rate, volume = volume, pitch = pitch }
+    elseif speechVoice == "overlay" then
+        speechVoices.overlay = { voice = voice, rate = rate, volume = volume, pitch = pitch }
     end
+end
+
+--- Set list of voices used by the Procedural RNG
+--- @param voices   string[] list of voices
+function TTS.SetRandomVoices(voices)
+    RNG_VOICES = voices
 end
 
 function TTS.ResetPipe()
