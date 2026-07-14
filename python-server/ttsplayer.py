@@ -83,6 +83,7 @@ class TTSPlayerPipeline:
 
     async def play(self, text: str, voice: str = "fr-FR-HenriNeural", **kwargs):
         try:
+            self._stop_event.clear()
             async for mp3_chunk in self.streamer.stream(text, voice=voice, **kwargs):
                 if self._stop_event.is_set():
                     break

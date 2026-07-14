@@ -7,8 +7,8 @@ local lastConversationSubtitle = nil
 local function log(fmt, ...) print(string.format("[SubtitleTTS] " .. fmt, ...)) end
 
 
-TTS.SetSpeaker("default", "Microsoft Henri Online", 3, 100, 3)
-TTS.SetSpeaker("overlay", "Microsoft Denise Online", 3, 50, 0)
+TTS.SetSpeaker("default", "fr-FR-HenriNeural", 3, 100, -3)
+TTS.SetSpeaker("overlay", "fr-FR-DeniseNeural", 3, 50, 0)
 TTS.Speak("SubtitleTTS mod initialized.")
 
 --- @param widget UConversationSubtitleWidget_BP_C
