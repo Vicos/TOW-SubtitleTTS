@@ -17,9 +17,16 @@ local RNG_PITCH_VAR_MAX = 10  -- Hz
 --- List of supported voices return by procedural RNG
 local RNG_VOICES = { "Microsoft Zira Desktop" }
 
+---@class NpcVoiceConfig
+---@field voice? string Le nom de la voix
+---@field pitch? integer Le pitch en Hz
+
+--- List of associated speaker => { voice, pitch }, override procedural RNG
+---@type table<string, NpcVoiceConfig>
+local NPC_VOICES = {}
 
 --- Log a message
-local function log(fmt, ...) print(string.format("[SubtitleTTS][TTS] " .. fmt, ...)) end
+local function log(fmt, ...) print(string.format("[SubtitleTTS][TTS] " .. fmt .. "\n", ...)) end
 
 --- Return hash based on a given string
 --- Used a Procedural RNG
@@ -91,13 +98,21 @@ end
 function TTS.SpeakAs(text, speechVoice, speaker)
     local voice = speechVoices[speechVoice].voice or nil
     local pitch = speechVoices[speechVoice].pitch or 0
-    -- Inject procedural RNG, usign speaker name as seed
+    -- Inject procedural RNG, usign speaker name as seed, overriden by hardcoded NPC_VOICES
     if speaker then
         local seed = hash_string(speaker)
-        local voice_index = (seed % #RNG_VOICES) + 1
-        voice = RNG_VOICES[voice_index]
-        local pitch_factor = ((seed >> 5) % 1000) / 1000
-        pitch = pitch + math.floor(RNG_PITCH_VAR_MIN + (pitch_factor * (RNG_PITCH_VAR_MAX - RNG_PITCH_VAR_MIN)))
+        if NPC_VOICES[speaker] and NPC_VOICES[speaker].voice then
+            voice = NPC_VOICES[speaker].voice
+        else
+            local voice_index = (seed % #RNG_VOICES) + 1
+            voice = RNG_VOICES[voice_index]
+        end
+        if NPC_VOICES[speaker] and NPC_VOICES[speaker].pitch then
+            pitch = NPC_VOICES[speaker].pitch
+        else
+            local pitch_factor = ((seed >> 5) % 1000) / 1000
+            pitch = math.floor(RNG_PITCH_VAR_MIN + (pitch_factor * (RNG_PITCH_VAR_MAX - RNG_PITCH_VAR_MIN)))
+        end
     end
 
     TTS.Stop()
@@ -133,6 +148,12 @@ end
 --- @param voices   string[] list of voices
 function TTS.SetRandomVoices(voices)
     RNG_VOICES = voices
+end
+
+--- Set NPC Voices, in format {speaker name = { voice = "voice name", pitch = 123 }}
+--- @param voices   table<string, NpcVoiceConfig> list of NPC voices
+function TTS.SetNPCVoices(voices)
+    NPC_VOICES = voices
 end
 
 function TTS.ResetPipe()

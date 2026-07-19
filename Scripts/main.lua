@@ -4,14 +4,18 @@ local TTS = require("tts")
 local lastConversationSubtitle = nil
 
 --- Log a message
-local function log(fmt, ...) print(string.format("[SubtitleTTS] " .. fmt, ...)) end
+local function log(fmt, ...) print(string.format("[SubtitleTTS] " .. fmt .. "\n", ...)) end
 
 
 TTS.SetSpeechVoice("default", "fr-FR-HenriNeural", 3, 100, -3)
-TTS.SetSpeechVoice("overlay", "fr-FR-DeniseNeural", 3, 50, 0)
+TTS.SetSpeechVoice("overlay", "fr-FR-HenriNeural", 3, 50, -3)
 TTS.SetRandomVoices({ "fr-FR-HenriNeural", "fr-FR-DeniseNeural", "fr-BE-CharlineNeural", "fr-BE-GerardNeural",
-    "fr-CH-ArianeNeural", "fr-CH-FabriceNeural", "fr-CA-ThierryNeural", "fr-CA-AntoineNeural", "fr-CA-JeanNeural",
-    "fr-CA-SylvieNeural" })
+    "fr-CH-ArianeNeural", "fr-CH-FabriceNeural", "fr-CA-ThierryNeural", "fr-CA-JeanNeural" })
+TTS.SetNPCVoices({
+    ["parvati"] = { voice = "fr-FR-DeniseNeural", pitch = 5 },
+    ["vicaire max"] = { voice = "fr-BE-GerardNeural", pitch = -3 },
+    ["félix"] = { voice = "fr-CA-ThierryNeural", pitch = 2 },
+})
 TTS.Speak("SubtitleTTS mod initialized.")
 
 --- @param widget UConversationSubtitleWidget_BP_C
@@ -44,11 +48,11 @@ NotifyOnNewObject("/Game/UI/Subtitles/ConversationSubtitleWidget_BP.Conversation
         if not speakerBlock or not speakerBlock:IsValid() then return end
         local speakerText = speakerBlock.Text
         if not speakerText or not speakerText:IsValid() then return end
-        local speaker = speakerText:ToString()
+        local speaker = speakerText:ToString():lower()
 
         log("Subtitle text @%s: %s", speaker, string)
         lastConversationSubtitle = string
-        TTS.SpeakAs(string, "overlay")
+        TTS.SpeakAs(string, "overlay", speaker)
     end)
 end)
 
@@ -80,7 +84,7 @@ NotifyOnNewObject("/Game/UI/Conversation/ConversationMessage_BP.ConversationMess
         if not speakerBlock or not speakerBlock:IsValid() then return end
         local speakerText = speakerBlock.Text
         if not speakerText or not speakerText:IsValid() then return end
-        local speaker = speakerText:ToString()
+        local speaker = speakerText:ToString():lower()
 
         log("Conversation text @%s: %s", speaker, string)
         lastConversationSubtitle = string
